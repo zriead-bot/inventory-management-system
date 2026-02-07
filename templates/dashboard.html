@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="dashboard-header">
+        <h1>
+            <i class="fas fa-warehouse"></i>
+            {{ location }} Inventory Dashboard
+        </h1>
+        <div class="location-badge">
+            <i class="fas fa-map-marker-alt"></i>
+            {{ location }}
+            {% if location == 'factory' %}
+                (Central Depot)
+            {% else %}
+                Depot
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Summary Cards -->
+        <div class="summary-card raw-material">
+            <div class="summary-icon">
+                <i class="fas fa-flask"></i>
+            </div>
+            <div class="summary-content">
+                <h3>Raw Materials</h3>
+                <p class="summary-value">
+                    {{ inventory_items|selectattr('item_type', 'equalto', 'raw_material')|sum(attribute='quantity') }}
+                </p>
+                <p class="summary-unit">Total KG/LTR</p>
+            </div>
+        </div>
+
+        <div class="summary-card packing-material">
+            <div class="summary-icon">
+                <i class="fas fa-box"></i>
+            </div>
+            <div class="summary-content">
+                <h3>Packing Materials</h3>
+                <p class="summary-value">
+                    {{ inventory_items|selectattr('item_type', 'equalto', 'packing_material')|sum(attribute='quantity') }}
+                </p>
+                <p class="summary-unit">Total PCS</p>
+            </div>
+        </div>
+
+        <div class="summary-card finished-goods">
+            <div class="summary-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="summary-content">
+                <h3>Finished Goods</h3>
+                <p class="summary-value">
+                    {{ inventory_items|selectattr('item_type', 'equalto', 'finished_goods')|sum(attribute='quantity') }}
+                </p>
+                <p class="summary-unit">Total PCS/CARTON</p>
+            </div>
+        </div>
+
+        <div class="summary-card total-items">
+            <div class="summary-icon">
+                <i class="fas fa-boxes"></i>
+            </div>
+            <div class="summary-content">
+                <h3>Total Items</h3>
+                <p class="summary-value">{{ inventory_items|length }}</p>
+                <p class="summary-unit">Different Items</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Inventory Form -->
+    <div class="card">
+        <h2><i class="fas fa-plus-circle"></i> Add/Update Inventory</h2>
+        <form id="addInventoryForm" class="inventory-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Item Type</label>
+                    <select name="item_type" required>
+                        <option value="">Select Type</option>
+                        <option value="raw_material">Raw Material</option>
+                        <option value="packing_material">Packing Material</option>
+                        <option value="finished_goods">Finished Goods</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Item Name</label>
+                    <input type="text" name="item_name" required 
+                           placeholder="Enter item name">
+                </div>
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <input type="number" step="0.01" name="quantity" required 
+                           placeholder="Enter quantity">
+                </div>
+                <div class="form-group">
+                    <label>Unit</label>
+                    <select name="unit" required>
+                        <option value="">Select Unit</option>
+                        <option value="KG">Kilogram (KG)</option>
+                        <option value="LTR">Liter (LTR)</option>
+                        <option value="PCS">Pieces (PCS)</option>
+                        <option value="CARTON">Carton (CARTON)</option>
+                    </select>
+                </div>
+            </div>
+            {% if user.role == 'admin' %}
+            <div class="form-group">
+                <label>Location</label>
+                <select name="location">
+                    <option value="factory">Factory</option>
+                    <option value="Dhaka">Dhaka Depot</option>
+                    <option value="Chittagong">Chittagong Depot</option>
+                    <option value="Jhenaidah">Jhenaidah Depot</option>
+                    <option value="Bogra">Bogra Depot</option>
+                    <option value="Rangpur">Rangpur Depot</option>
+                </select>
+            </div>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Add to Inventory
+            </button>
+        </form>
+    </div>
+
+    <!-- Inventory List -->
+    <div class="card">
+        <h2><i class="fas fa-list"></i> Current Inventory</h2>
+        <div class="table-responsive">
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Item Type</th>
+                        <th>Item Name</th>
+                        <th>Quantity</th>
+                        <th>Unit</th>
+                        <th>Min Level</th>
+                        <th>Max Level</th>
+                        <th>Last Updated</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventory_items %}
+                    <tr>
+                        <td>
+                            <span class="badge 
+                                {% if item.item_type == 'raw_material' %}badge-raw
+                                {% elif item.item_type == 'packing_material' %}badge-packing
+                                {% else %}badge-finished{% endif %}">
+                                {{ item.item_type|replace('_', ' ')|title }}
+                            </span>
+                        </td>
+                        <td>{{ item.item_name }}</td>
+                        <td class="quantity-cell">
+                            <span class="quantity-value">{{ item.quantity|round(2) }}</span>
+                        </td>
+                        <td>{{ item.unit }}</td>
+                        <td>{{ item.min_stock_level }}</td>
+                        <td>{{ item.max_stock_level }}</td>
+                        <td>{{ item.last_updated.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="action-cell">
+                            <div class="quantity-control">
+                                <input type="number" step="0.01" class="quantity-input" 
+                                       placeholder="Qty" data-id="{{ item.id }}">
+                                <button class="btn-sm btn-success" 
+                                        onclick="updateQuantity({{ item.id }}, 'add')">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button class="btn-sm btn-warning" 
+                                        onclick="updateQuantity({{ item.id }}, 'subtract')">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <button class="btn-sm btn-info" 
+                                        onclick="setQuantity({{ item.id }})">
+                                    <i class="fas fa-edit"></i> Set
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center">No inventory items found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateQuantity(itemId, action) {
+    const input = document.querySelector(`input[data-id="${itemId}"]`);
+    const quantity = parseFloat(input.value) || 0;
+    
+    if (quantity <= 0) {
+        alert('Please enter a valid quantity');
+        return;
+    }
+    
+    fetch(`/inventory/update/${itemId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `action=${action}&quantity=${quantity}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+}
+
+function setQuantity(itemId) {
+    const input = document.querySelector(`input[data-id="${itemId}"]`);
+    const quantity = parseFloat(input.value) || 0;
+    
+    if (quantity < 0) {
+        alert('Please enter a valid quantity');
+        return;
+    }
+    
+    fetch(`/inventory/update/${itemId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `action=set&quantity=${quantity}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+}
+
+// Handle add inventory form
+document.getElementById('addInventoryForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/inventory/add', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+});
+</script>
+{% endblock %}
