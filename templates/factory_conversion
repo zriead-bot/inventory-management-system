@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="conversion-container">
+    <div class="card">
+        <h2><i class="fas fa-exchange-alt"></i> Production Conversion</h2>
+        <p class="subtitle">Convert Raw Materials and Packing Materials into Finished Goods</p>
+        
+        <form method="POST" action="{{ url_for('factory_conversion') }}">
+            <div class="form-group">
+                <label>Finished Product Name</label>
+                <input type="text" name="product_name" required 
+                       placeholder="Enter product name">
+            </div>
+            
+            <div class="form-group">
+                <label>Quantity to Produce</label>
+                <div class="input-with-unit">
+                    <input type="number" step="1" name="quantity_produced" required 
+                           placeholder="Enter quantity">
+                    <span class="unit-label">PCS</span>
+                </div>
+            </div>
+            
+            <div class="materials-section">
+                <!-- Raw Materials Selection -->
+                <div class="materials-card">
+                    <h3><i class="fas fa-flask"></i> Raw Materials Required</h3>
+                    {% for material in raw_materials %}
+                    <div class="material-item">
+                        <label>
+                            <input type="checkbox" name="raw_material_{{ material.id }}" 
+                                   value="{{ material.id }}">
+                            {{ material.item_name }} 
+                            (Available: {{ material.quantity }} {{ material.unit }})
+                        </label>
+                        <input type="number" step="0.01" 
+                               name="raw_material_qty_{{ material.id }}"
+                               placeholder="Quantity to use" 
+                               class="quantity-input">
+                    </div>
+                    {% else %}
+                    <p>No raw materials available in factory.</p>
+                    {% endfor %}
+                </div>
+                
+                <!-- Packing Materials Selection -->
+                <div class="materials-card">
+                    <h3><i class="fas fa-box"></i> Packing Materials Required</h3>
+                    {% for material in packing_materials %}
+                    <div class="material-item">
+                        <label>
+                            <input type="checkbox" name="packing_material_{{ material.id }}" 
+                                   value="{{ material.id }}">
+                            {{ material.item_name }} 
+                            (Available: {{ material.quantity }} {{ material.unit }})
+                        </label>
+                        <input type="number" step="1" 
+                               name="packing_material_qty_{{ material.id }}"
+                               placeholder="Quantity to use" 
+                               class="quantity-input">
+                    </div>
+                    {% else %}
+                    <p>No packing materials available in factory.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-success btn-lg">
+                <i class="fas fa-play-circle"></i> Start Production
+            </button>
+        </form>
+    </div>
+    
+    <!-- Current Factory Inventory Summary -->
+    <div class="card">
+        <h3><i class="fas fa-warehouse"></i> Factory Inventory Summary</h3>
+        <div class="inventory-summary">
+            <div class="summary-item">
+                <h4>Raw Materials</h4>
+                <ul>
+                    {% for item in raw_materials %}
+                    <li>{{ item.item_name }}: {{ item.quantity }} {{ item.unit }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="summary-item">
+                <h4>Packing Materials</h4>
+                <ul>
+                    {% for item in packing_materials %}
+                    <li>{{ item.item_name }}: {{ item.quantity }} {{ item.unit }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
