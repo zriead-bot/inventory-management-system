@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-dashboard">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-chart-bar"></i> Admin Dashboard - Complete System Overview</h1>
+        <p class="subtitle">View all inventory across all locations</p>
+    </div>
+    
+    <!-- Overall Summary -->
+    <div class="card">
+        <h2><i class="fas fa-globe"></i> System-wide Summary</h2>
+        <div class="summary-grid">
+            {% for location, data in inventory_summary.items() %}
+            <div class="location-card">
+                <h3>
+                    {% if location == 'factory' %}
+                        <i class="fas fa-industry"></i> Factory
+                    {% else %}
+                        <i class="fas fa-warehouse"></i> {{ location }}
+                    {% endif %}
+                </h3>
+                <div class="location-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Raw Material</span>
+                        <span class="stat-value">{{ data.raw_material|round(2) }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Packing Material</span>
+                        <span class="stat-value">{{ data.packing_material|round(2) }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Finished Goods</span>
+                        <span class="stat-value">{{ data.finished_goods|round(2) }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Items</span>
+                        <span class="stat-value">{{ data.items|length }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Transfer from Factory to Depot -->
+    <div class="card">
+        <h2><i class="fas fa-truck-moving"></i> Transfer Goods to Depot</h2>
+        <form id="transferForm" class="transfer-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Select Item from Factory</label>
+                    <select id="factoryItemSelect" required>
+                        <option value="">Select item</option>
+                        {% for item in inventory_summary.factory.items %}
+                        <option value="{{ item.id }}" 
+                                data-name="{{ item.item_name }}"
+                                data-type="{{ item.item_type }}"
+                                data-unit="{{ item.unit }}"
+                                data-qty="{{ item.quantity }}">
+                            {{ item.item_name }} ({{ item.quantity }} {{ item.unit }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quantity to Transfer</label>
+                    <input type="number" step="0.01" id="transferQty" required 
+                           placeholder="Enter quantity">
+                </div>
+                <div class="form-group">
+                    <label>To Depot</label>
+                    <select id="toDepot" required>
+                        <option value="">Select depot</option>
+                        <option value="Dhaka">Dhaka</option>
+                        <option value="Chittagong">Chittagong</option>
+                        <option value="Jhenaidah">Jhenaidah</option>
+                        <option value="Bogra">Bogra</option>
+                        <option value="Rangpur">Rangpur</option>
+                    </select>
+                </div>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="transferToDepot()">
+                <i class="fas fa-truck-loading"></i> Transfer
+            </button>
+        </form>
+    </div>
+    
+    <!-- Detailed View by Location -->
+    <div class="card">
+        <h2><i class="fas fa-search"></i> Detailed Inventory by Location</h2>
+        <div class="location-tabs">
+            {% for location in locations %}
+            <button class="tab-btn {% if loop.first %}active{% endif %}" 
+                    onclick="showLocation('{{ location }}')">
+                {{ location }}
+            </button>
+            {% endfor %}
+        </div>
+        
+        {% for location in locations %}
+        <div class="tab-content {% if loop.first %}active{% endif %}" id="tab-{{ location }}">
+            <h3>
+                {% if location == 'factory' %}
+                    <i class="fas fa-industry"></i> Factory Inventory
+                {% else %}
+                    <i class="fas fa-warehouse"></i> {{ location }} Depot Inventory
+                {% endif %}
+            </h3>
+            <div class="table-responsive">
+                <table class="inventory-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Item Name</th>
+                            <th>Quantity</th>
+                            <th>Unit</th>
+                            <th>Min Level</th>
+                            <th>Max Level</th>
+                            <th>Last Updated</th>
+                            <th>Updated By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in inventory_summary[location].items %}
+                        <tr>
+                            <td>
+                                <span class="badge 
+                                    {% if item.item_type == 'raw_material' %}badge-raw
+                                    {% elif item.item_type == 'packing_material' %}badge-packing
+                                    {% else %}badge-finished{% endif %}">
+                                    {{ item.item_type|replace('_', ' ')|title }}
+                                </span>
+                            </td>
+                            <td>{{ item.item_name }}</td>
+                            <td>{{ item.quantity|round(2) }}</td>
+                            <td>{{ item.unit }}</td>
+                            <td>{{ item.min_stock_level }}</td>
+                            <td>{{ item.max_stock_level }}</td>
+                            <td>{{ item.last_updated.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ item.updated_by }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center">No inventory items found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function showLocation(location) {
+    // Hide all tab content
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    // Remove active class from all buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    // Show selected tab
+    document.getElementById(`tab-${location}`).classList.add('active');
+    // Activate button
+    event.target.classList.add('active');
+}
+
+function transferToDepot() {
+    const itemSelect = document.getElementById('factoryItemSelect');
+    const selectedOption = itemSelect.options[itemSelect.selectedIndex];
+    const itemId = selectedOption.value;
+    const quantity = parseFloat(document.getElementById('transferQty').value);
+    const toDepot = document.getElementById('toDepot').value;
+    
+    if (!itemId || !quantity || !toDepot) {
+        alert('Please fill all fields');
+        return;
+    }
+    
+    const availableQty = parseFloat(selectedOption.getAttribute('data-qty'));
+    if (quantity > availableQty) {
+        alert(`Insufficient quantity. Available: ${availableQty}`);
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('item_id', itemId);
+    formData.append('quantity', quantity);
+    formData.append('to_location', toDepot);
+    
+    fetch('/api/depot/transfer', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Transfer completed successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+}
+
+// Auto-update transfer quantity max based on selected item
+document.getElementById('factoryItemSelect').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const maxQty = parseFloat(selectedOption.getAttribute('data-qty')) || 0;
+    document.getElementById('transferQty').max = maxQty;
+});
+</script>
+{% endblock %}
